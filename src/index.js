@@ -15,6 +15,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
+app.use(express.json());
+
 // Chrome DevTools well-known endpoint
 app.get('/.well-known/appspecific/com.chrome.devtools.json', (_, res) => res.json({}));
 
