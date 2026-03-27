@@ -1,9 +1,11 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const { randomUUID } = require('crypto');
 const { z } = require('zod');
 const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
 const { SSEServerTransport } = require('@modelcontextprotocol/sdk/server/sse.js');
+const { StreamableHTTPServerTransport } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
 const { tools } = require('./tools');
 
 function jsonPropsToZod(properties) {
@@ -26,8 +28,9 @@ app.set('trust proxy', true);
 // CORS
 app.use(cors({
   origin: '*',
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'mcp-session-id'],
+  exposedHeaders: ['mcp-session-id'],
 }));
 
 app.use(express.json());
@@ -131,13 +134,8 @@ app.get('/refresh', async (req, res) => {
   }
 });
 
-// SSE transport for MCP
-const transports = {};
-
-app.get('/sse', async (req, res) => {
+function createMcpServer() {
   const server = new McpServer({ name: 'whoop-mcp', version: '1.0.0' });
-
-  // Register all tools
   tools.forEach((tool) => {
     server.tool(tool.name, tool.description, jsonPropsToZod(tool.inputSchema.properties || {}), async (params) => {
       try {
@@ -148,16 +146,44 @@ app.get('/sse', async (req, res) => {
       }
     });
   });
+  return server;
+}
 
+// Streamable HTTP transport (claude.ai connectors)
+const mcpSessions = {};
+
+app.all('/mcp', async (req, res) => {
+  const sessionId = req.headers['mcp-session-id'];
+
+  if (sessionId && mcpSessions[sessionId]) {
+    return mcpSessions[sessionId].transport.handleRequest(req, res, req.body);
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: () => randomUUID() });
+  const server = createMcpServer();
+  transport.onclose = () => { if (transport.sessionId) delete mcpSessions[transport.sessionId]; };
+  await server.connect(transport);
+  await transport.handleRequest(req, res, req.body);
+  if (transport.sessionId) mcpSessions[transport.sessionId] = { transport, server };
+});
+
+// Legacy SSE transport (Claude Desktop / other clients)
+const sseTransports = {};
+
+app.get('/sse', async (req, res) => {
+  const server = createMcpServer();
   const transport = new SSEServerTransport('/messages', res);
-  transports[transport.sessionId] = { transport, server };
-  res.on('close', () => delete transports[transport.sessionId]);
+  sseTransports[transport.sessionId] = { transport, server };
+  res.on('close', () => delete sseTransports[transport.sessionId]);
   await server.connect(transport);
 });
 
 app.post('/messages', async (req, res) => {
-  const sessionId = req.query.sessionId;
-  const session = transports[sessionId];
+  const session = sseTransports[req.query.sessionId];
   if (!session) return res.status(404).json({ error: 'Session not found' });
   await session.transport.handlePostMessage(req, res);
 });
