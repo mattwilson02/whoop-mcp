@@ -33,8 +33,6 @@ app.use(cors({
   exposedHeaders: ['mcp-session-id'],
 }));
 
-app.use(express.json());
-
 // Chrome DevTools well-known endpoint
 app.get('/.well-known/appspecific/com.chrome.devtools.json', (_, res) => res.json({}));
 
@@ -152,7 +150,7 @@ function createMcpServer() {
 // Streamable HTTP transport (claude.ai connectors)
 const mcpSessions = {};
 
-app.all('/mcp', async (req, res) => {
+app.all('/mcp', express.json(), async (req, res) => {
   const sessionId = req.headers['mcp-session-id'];
 
   if (sessionId && mcpSessions[sessionId]) {
@@ -163,12 +161,13 @@ app.all('/mcp', async (req, res) => {
     return res.status(404).json({ error: 'Session not found' });
   }
 
-  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: () => randomUUID() });
+  const newSessionId = randomUUID();
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: () => newSessionId });
   const server = createMcpServer();
-  transport.onclose = () => { if (transport.sessionId) delete mcpSessions[transport.sessionId]; };
+  mcpSessions[newSessionId] = { transport, server };
+  transport.onclose = () => delete mcpSessions[newSessionId];
   await server.connect(transport);
   await transport.handleRequest(req, res, req.body);
-  if (transport.sessionId) mcpSessions[transport.sessionId] = { transport, server };
 });
 
 // Legacy SSE transport (Claude Desktop / other clients)
