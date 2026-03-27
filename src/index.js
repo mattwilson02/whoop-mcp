@@ -45,7 +45,7 @@ app.get('/auth', (req, res) => {
   const clientId = process.env.WHOOP_CLIENT_ID;
   const redirectUri =
     req.query.redirect_uri || process.env.WHOOP_REDIRECT_URI || 'http://localhost:3001/callback';
-  const scopes = 'read:recovery read:cycles read:workout read:sleep read:profile read:body_measurement';
+  const scopes = 'offline read:recovery read:cycles read:workout read:sleep read:profile read:body_measurement';
 
   const authUrl =
     `https://api.prod.whoop.com/oauth/oauth2/auth?` +
