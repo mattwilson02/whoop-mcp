@@ -1,9 +1,24 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const { z } = require('zod');
 const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
 const { SSEServerTransport } = require('@modelcontextprotocol/sdk/server/sse.js');
 const { tools } = require('./tools');
+
+function jsonPropsToZod(properties) {
+  const shape = {};
+  for (const [key, val] of Object.entries(properties)) {
+    let schema;
+    if (val.type === 'number') schema = z.number();
+    else if (val.type === 'string') schema = z.string();
+    else if (val.type === 'boolean') schema = z.boolean();
+    else schema = z.unknown();
+    if (val.description) schema = schema.describe(val.description);
+    shape[key] = schema.optional();
+  }
+  return shape;
+}
 
 const app = express();
 app.set('trust proxy', true);
@@ -124,7 +139,7 @@ app.get('/sse', async (req, res) => {
 
   // Register all tools
   tools.forEach((tool) => {
-    server.tool(tool.name, tool.description, tool.inputSchema.properties || {}, async (params) => {
+    server.tool(tool.name, tool.description, jsonPropsToZod(tool.inputSchema.properties || {}), async (params) => {
       try {
         const result = await tool.handler(params);
         return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
