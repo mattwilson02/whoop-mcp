@@ -114,6 +114,7 @@ app.get('/refresh', async (req, res) => {
         refresh_token: refreshToken,
         client_id: process.env.WHOOP_CLIENT_ID,
         client_secret: process.env.WHOOP_CLIENT_SECRET,
+        redirect_uri: process.env.WHOOP_REDIRECT_URI || 'https://whoop-mcp-x2aj.onrender.com/callback',
         scope: 'offline read:recovery read:cycles read:workout read:sleep read:profile read:body_measurement',
       }),
     });
