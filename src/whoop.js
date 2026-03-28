@@ -26,7 +26,7 @@ class WhoopClient {
       });
 
       const tokens = await res.json();
-      if (tokens.error) throw new Error(`Token refresh failed: ${tokens.error}`);
+      if (tokens.error) throw new Error(`Token refresh failed: ${tokens.error} - ${tokens.error_description || JSON.stringify(tokens)}`);
 
       this.accessToken = tokens.access_token;
       process.env.WHOOP_ACCESS_TOKEN = tokens.access_token;
