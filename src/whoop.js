@@ -11,6 +11,9 @@ class WhoopClient {
 
     this._refreshing = (async () => {
       const refreshToken = process.env.WHOOP_REFRESH_TOKEN;
+      const clientId = process.env.WHOOP_CLIENT_ID;
+      const clientSecret = process.env.WHOOP_CLIENT_SECRET;
+      console.log('Refresh attempt:', { hasRefreshToken: !!refreshToken, hasClientId: !!clientId, hasClientSecret: !!clientSecret });
       if (!refreshToken) throw new Error('No WHOOP_REFRESH_TOKEN set — cannot auto-refresh');
 
       const res = await fetch('https://api.prod.whoop.com/oauth/oauth2/token', {
