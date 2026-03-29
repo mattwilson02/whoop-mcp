@@ -1,27 +1,31 @@
 const BASE_URL = 'https://api.prod.whoop.com/developer';
 
+// In-memory token store — survives between requests, reset on deploy
+let currentTokens = {};
+
 class WhoopClient {
-  constructor(accessToken) {
-    this.accessToken = accessToken;
+  constructor() {
+    this.accessToken = currentTokens.access_token || process.env.WHOOP_ACCESS_TOKEN;
+    this.refreshToken = currentTokens.refresh_token || process.env.WHOOP_REFRESH_TOKEN;
     this._refreshing = null;
+  }
+
+  static setTokens(tokens) {
+    currentTokens = tokens;
   }
 
   async refreshAccessToken() {
     if (this._refreshing) return this._refreshing;
 
     this._refreshing = (async () => {
-      const refreshToken = process.env.WHOOP_REFRESH_TOKEN;
-      const clientId = process.env.WHOOP_CLIENT_ID;
-      const clientSecret = process.env.WHOOP_CLIENT_SECRET;
-      console.log('Refresh attempt:', { hasRefreshToken: !!refreshToken, hasClientId: !!clientId, hasClientSecret: !!clientSecret });
-      if (!refreshToken) throw new Error('No WHOOP_REFRESH_TOKEN set — cannot auto-refresh');
+      if (!this.refreshToken) throw new Error('No refresh token available — visit /auth to connect');
 
       const res = await fetch('https://api.prod.whoop.com/oauth/oauth2/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           grant_type: 'refresh_token',
-          refresh_token: refreshToken,
+          refresh_token: this.refreshToken,
           client_id: process.env.WHOOP_CLIENT_ID,
           client_secret: process.env.WHOOP_CLIENT_SECRET,
         }),
@@ -31,10 +35,10 @@ class WhoopClient {
       if (tokens.error) throw new Error(`Token refresh failed: ${tokens.error} - ${tokens.error_description || JSON.stringify(tokens)}`);
 
       this.accessToken = tokens.access_token;
-      process.env.WHOOP_ACCESS_TOKEN = tokens.access_token;
-      if (tokens.refresh_token) process.env.WHOOP_REFRESH_TOKEN = tokens.refresh_token;
+      if (tokens.refresh_token) this.refreshToken = tokens.refresh_token;
 
-      console.log('Whoop access token refreshed successfully');
+      WhoopClient.setTokens({ access_token: this.accessToken, refresh_token: this.refreshToken });
+      console.log('Whoop tokens refreshed');
       return tokens;
     })().finally(() => { this._refreshing = null; });
 

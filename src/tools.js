@@ -1,9 +1,7 @@
 const { WhoopClient } = require('./whoop');
 
 function getClient() {
-  const token = process.env.WHOOP_ACCESS_TOKEN;
-  if (!token) throw new Error('WHOOP_ACCESS_TOKEN not set');
-  return new WhoopClient(token);
+  return new WhoopClient();
 }
 
 function msToHours(ms) {

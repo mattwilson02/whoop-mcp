@@ -7,6 +7,7 @@ const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
 const { SSEServerTransport } = require('@modelcontextprotocol/sdk/server/sse.js');
 const { StreamableHTTPServerTransport } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
 const { tools } = require('./tools');
+const { WhoopClient } = require('./whoop');
 
 function jsonPropsToZod(properties) {
   const shape = {};
@@ -89,10 +90,10 @@ app.get('/callback', async (req, res) => {
     const tokens = await tokenRes.json();
     if (tokens.error) return res.status(400).json(tokens);
 
+    WhoopClient.setTokens({ access_token: tokens.access_token, refresh_token: tokens.refresh_token });
+
     res.json({
-      message: 'Success! Set these as environment variables:',
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
+      message: 'Tokens stored in memory. MCP is ready to use.',
       expires_in: tokens.expires_in,
     });
   } catch (err) {
