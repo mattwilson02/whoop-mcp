@@ -94,6 +94,7 @@ app.get('/callback', async (req, res) => {
 
     res.json({
       message: 'Tokens stored in memory. MCP is ready to use.',
+      has_refresh_token: !!tokens.refresh_token,
       expires_in: tokens.expires_in,
     });
   } catch (err) {
