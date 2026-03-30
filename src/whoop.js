@@ -20,6 +20,13 @@ class WhoopClient {
     this._refreshing = (async () => {
       if (!this.refreshToken) throw new Error('No refresh token available — visit /auth to connect');
 
+      console.log('Refresh debug:', {
+        hasRefreshToken: !!this.refreshToken,
+        refreshTokenLength: this.refreshToken?.length,
+        hasClientId: !!process.env.WHOOP_CLIENT_ID,
+        hasClientSecret: !!process.env.WHOOP_CLIENT_SECRET,
+      });
+
       const res = await fetch('https://api.prod.whoop.com/oauth/oauth2/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
